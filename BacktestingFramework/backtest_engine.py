@@ -7,6 +7,7 @@ import random
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from sklearn.calibration import calibration_curve
+import os # Added for file handling
 
 # ==========================================
 # 1. DATA LAYER (Engine)
@@ -31,7 +32,7 @@ class DataEngine:
 
     def fetch_crypto_data(self, symbol="BTC/USDT", timeframe='1d', limit=365):
         """Fetches from CCXT (Binance) and saves to SQLite"""
-        print(f"⬇️ Downloading Crypto: {symbol}...")
+        print(f"Downloading Crypto: {symbol}...")
         exchange = ccxt.binance()
         ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
         
@@ -46,8 +47,13 @@ class DataEngine:
 
     def fetch_stock_data(self, ticker="AAPL", period="1y"):
         """Fetches from Yahoo Finance and saves to SQLite"""
-        print(f"⬇️ Downloading Stock: {ticker}...")
+        print(f"Downloading Stock: {ticker}...")
         df = yf.download(ticker, period=period, progress=False)
+        
+        # Flatten MultiIndex columns if present (common in newer yfinance versions)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1)
+            
         df.reset_index(inplace=True)
         
         data = []
@@ -93,6 +99,28 @@ class DataEngine:
         
         return pd.DataFrame(news_events).set_index("timestamp")
 
+    def load_news_from_csv(self, csv_path="news_data.csv"):
+        """Loads real news data from a CSV file."""
+        if not os.path.exists(csv_path):
+            print(f"News file '{csv_path}' not found. Falling back to mock news.")
+            return None
+            
+        print(f"Loading news from {csv_path}...")
+        try:
+            df = pd.read_csv(csv_path)
+            # Ensure required columns exist
+            required_cols = ['timestamp', 'sentiment', 'ai_confidence']
+            if not all(col in df.columns for col in required_cols):
+                print(f"Error: CSV missing columns. Required: {required_cols}")
+                return None
+                
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df.set_index('timestamp', inplace=True)
+            return df
+        except Exception as e:
+            print(f"Error loading news CSV: {e}")
+            return None
+
 # ==========================================
 # 2. SIMULATION ENGINE (Backtester)
 # ==========================================
@@ -108,7 +136,7 @@ class Backtester:
         """
         The Event Loop: Iterates through time, combining price and news.
         """
-        print("🚀 Starting Simulation...")
+        print("Starting Simulation...")
         
         # Merge Price and News (Left Join)
         full_timeline = price_data.join(news_data, how='left')
@@ -233,11 +261,13 @@ if __name__ == "__main__":
     engine = DataEngine()
     
     # Choose: Crypto or Stock
-    price_data = engine.fetch_crypto_data("BTC/USDT", limit=500)
-    # price_data = engine.fetch_stock_data("AAPL", period="2y")
+    # price_data = engine.fetch_crypto_data("BTC/USDT", limit=500)
+    price_data = engine.fetch_stock_data("AAPL", period="2y")
     
-    # Generate Fake News (replace this with real news DB later)
-    news_data = engine.generate_mock_news(price_data)
+    # Generate Fake News OR Load Real News
+    news_data = engine.load_news_from_csv("real_news.csv")
+    if news_data is None:
+        news_data = engine.generate_mock_news(price_data)
 
     # 2. Run Backtest
     bot = Backtester(initial_capital=10000)
@@ -245,7 +275,7 @@ if __name__ == "__main__":
 
     # 3. Analyze Results
     metrics = PerformanceAnalyst.calculate_metrics(equity_df)
-    print("\n📊 PERFORMANCE REPORT")
+    print("\nPERFORMANCE REPORT")
     for k, v in metrics.items():
         print(f"{k}: {v}")
 

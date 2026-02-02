@@ -1,7 +1,10 @@
-# Python
+venv/
+.env
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+.git/
+.vscode/
+*.log
 .pytest_cache/
 .mypy_cache/
 .coverage
@@ -10,22 +13,6 @@ site-packages/
 dist/
 build/
 *.egg-info/
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-
-# Security/Keys
 *.pem
 *.key
 *.p12
@@ -39,14 +26,7 @@ token.json
 secrets.yaml
 secrets.json
 client_secret.json
-
-# OS specific
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Project specific
 backtest_data.db
-*.log
-bot_audit.log
-temp_tvdatafeed_check/
